@@ -71,7 +71,7 @@ function render() {
   const header = el('header')
   const titles = el('div')
   const h1 = el('h1')
-  h1.textContent = 'PDF一発'
+  h1.textContent = lang === 'en' ? 'PDF Joiner' : 'PDF一発'
   const lead = el('p', 'lead')
   lead.textContent = '選んだ写真を1枚のPDFにします。PDFは選んだ順のまま1つにします。処理はこのブラウザの中だけで、ファイルは保存しません。'
   titles.append(h1, lead)
