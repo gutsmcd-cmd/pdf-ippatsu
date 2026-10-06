@@ -1,5 +1,5 @@
 import './style.css'
-import { buttonLabel, type ButtonKey, type Lang } from './labels'
+import { buttonLabel, text, type ButtonKey, type Lang, type TextKey } from './labels'
 import { joinPdfs, photosToPdf } from './pdf'
 
 type Mode = 'photos' | 'pdfs'
@@ -21,7 +21,7 @@ let lang: Lang = readLang()
 let mode: Mode = 'photos'
 let items: Item[] = []
 let busy = false
-let status = ''
+let status: TextKey | null = null
 
 void persistStorage()
 
@@ -65,15 +65,16 @@ async function persistStorage() {
 
 function render() {
   document.documentElement.lang = lang === 'en' ? 'en' : 'ja'
+  document.title = text(lang, 'title')
   app.innerHTML = ''
 
   const root = el('main', 'app')
   const header = el('header')
   const titles = el('div')
   const h1 = el('h1')
-  h1.textContent = lang === 'en' ? 'PDF Joiner' : 'PDF一発'
+  h1.textContent = text(lang, 'title')
   const lead = el('p', 'lead')
-  lead.textContent = '選んだ写真を1枚のPDFにします。PDFは選んだ順のまま1つにします。処理はこのブラウザの中だけで、ファイルは保存しません。'
+  lead.textContent = text(lang, 'lead')
   titles.append(h1, lead)
   header.append(titles, button('lang', () => setLang(lang === 'ja' ? 'en' : 'ja')))
 
@@ -122,10 +123,10 @@ function render() {
   })
 
   const note = el('p', 'status')
-  note.textContent = status
+  note.textContent = status ? text(lang, status) : ''
 
   const foot = el('p', 'footnote')
-  foot.textContent = '写真はA4に収めて1ページずつ。最初の読み込みのあと、通信せずに使えます。最大30ファイル。'
+  foot.textContent = text(lang, 'footnote')
 
   root.append(header, modes, actions, list, note, foot)
   app.append(root, fileInput)
@@ -160,7 +161,7 @@ function switchMode(next: Mode) {
   if (next === mode) return
   clearAll()
   mode = next
-  status = ''
+  status = null
   render()
 }
 
@@ -169,7 +170,7 @@ async function addFiles(files: File[]) {
   const room = MAX_ITEMS - items.length
   const accepted = files.filter((file) => (mode === 'photos' ? isImage(file) : isPdf(file))).slice(0, Math.max(0, room))
   if (accepted.length === 0) {
-    status = mode === 'photos' ? 'JPEG、PNG、WebP、GIFを選んでください。' : 'PDFを選んでください。'
+    status = mode === 'photos' ? 'needImages' : 'needPdfs'
     render()
     return
   }
@@ -177,7 +178,7 @@ async function addFiles(files: File[]) {
     const preview = mode === 'photos' ? URL.createObjectURL(file) : null
     items.push({ id: crypto.randomUUID(), file, preview })
   }
-  status = ''
+  status = null
   render()
 }
 
@@ -211,23 +212,23 @@ function clearAll() {
     if (item.preview) URL.revokeObjectURL(item.preview)
   }
   items = []
-  status = ''
+  status = null
   render()
 }
 
 async function makePdf() {
   if (busy || items.length === 0) return
   busy = true
-  status = ''
+  status = null
   render()
   try {
     await persistStorage()
     const files = items.map((item) => item.file)
     const bytes = mode === 'photos' ? await photosToPdf(files) : await joinPdfs(files)
     download(bytes, mode === 'photos' ? 'pdf-ippatsu-photos.pdf' : 'pdf-ippatsu-join.pdf')
-    status = ''
+    status = null
   } catch {
-    status = mode === 'photos' ? 'この画像はPDFにできませんでした。' : 'このPDFは結合できませんでした。暗号化されたPDFは扱えません。'
+    status = mode === 'photos' ? 'photoFailed' : 'joinFailed'
   } finally {
     busy = false
     render()
